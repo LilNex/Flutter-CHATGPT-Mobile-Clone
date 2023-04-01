@@ -2,6 +2,7 @@ import 'package:chat_gpt_sdk/chat_gpt_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:velocity_x/velocity_x.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'chatmessage.dart';
 import 'threedots.dart';
@@ -18,7 +19,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<ChatMessage> _messages = [];
   late OpenAI? chatGPT;
   bool _isImageSearch = false;
-
+  bool _isListening = false;
   bool _isTyping = false;
 
   @override
@@ -26,8 +27,11 @@ class _ChatScreenState extends State<ChatScreen> {
     chatGPT = OpenAI.instance.build(
         token: dotenv.env["API_KEY"],
         baseOption: HttpSetup(receiveTimeout: 60000));
+            _speech = stt.SpeechToText();
+
     super.initState();
   }
+
 
   @override
   void dispose() {
@@ -52,7 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     _controller.clear();
-
+    print("this is the request " + message.text);
     if (_isImageSearch) {
       final request = GenerateImage(message.text, 1, size: "256x256");
 
@@ -62,6 +66,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       final request =
           CompleteText(prompt: message.text, model: kTranslateModelV3);
+        
 
       final response = await chatGPT!.onCompleteText(request: request);
       Vx.log(response!.choices[0].text);
@@ -102,6 +107,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 _sendMessage();
               },
             ),
+            IconButton(
+              onPressed: _listen,
+              icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
+            ),
             TextButton(
                 onPressed: () {
                   _isImageSearch = true;
@@ -112,6 +121,34 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     ).px16();
+  }
+
+  late stt.SpeechToText _speech;
+  String _text = 'Press the button and start speaking';
+  double _confidence = 1.0;
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('onStatus: $val'),
+        onError: (val) => print('onError: $val'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _controller.text = val.recognizedWords;
+            print('jarhbou get this ' + val.recognizedWords);
+            if (val.hasConfidenceRating && val.confidence > 0) {
+              _confidence = val.confidence;
+            }
+            _isListening = false;
+          }),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
   }
 
   @override
