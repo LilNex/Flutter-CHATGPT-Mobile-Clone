@@ -27,11 +27,10 @@ class _ChatScreenState extends State<ChatScreen> {
     chatGPT = OpenAI.instance.build(
         token: dotenv.env["API_KEY"],
         baseOption: HttpSetup(receiveTimeout: 60000));
-            _speech = stt.SpeechToText();
+    _speech = stt.SpeechToText();
 
     super.initState();
   }
-
 
   @override
   void dispose() {
@@ -66,7 +65,6 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       final request =
           CompleteText(prompt: message.text, model: kTranslateModelV3);
-        
 
       final response = await chatGPT!.onCompleteText(request: request);
       Vx.log(response!.choices[0].text);
@@ -136,10 +134,11 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() => _isListening = true);
         _speech.listen(
           onResult: (val) => setState(() {
-            _controller.text = val.recognizedWords;
             print('jarhbou get this ' + val.recognizedWords);
             if (val.hasConfidenceRating && val.confidence > 0) {
               _confidence = val.confidence;
+              _controller.text = val.recognizedWords;
+              _sendMessage();
             }
             _isListening = false;
           }),
@@ -154,7 +153,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text("ChatGPT & Dall-E2 Demo")),
+        appBar: AppBar(title: const Text("ChatGPT")),
         body: SafeArea(
           child: Column(
             children: [
